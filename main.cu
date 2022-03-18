@@ -37,8 +37,6 @@ __global__ void matmul_basic(const DTYPE* A, const DTYPE* B, DTYPE* C, const int
 
 __global__ void matmul_ptx_s32(const DTYPE* A, const DTYPE* B, DTYPE* C, const int M, const int N, const int K) {
 
-
-    //asm("add.s32 %0, %1, %2;" : "=r"(i) : "r"(j), "r"(k));
     int y = blockIdx.y * blockDim.y + threadIdx.y;
     int x = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -50,8 +48,7 @@ __global__ void matmul_ptx_s32(const DTYPE* A, const DTYPE* B, DTYPE* C, const i
            ); 
     
         for (int k=0; k<K; k++) {
-            // sum += A[y*K+k]*B[k*N+x];
-            asm("mad.lo.s32 t1, %0, %1, t1;" : :"r"(A[y*K+k]), "r"(B[k*N+x])) ; 
+            asm("mad.lo.s32 t1, %0, %1, t1;" : :"r"(A[y*K+k]), "r"(B[k*N+x])) ; // sum += A[y*K+k]*B[k*N+x];
         }
 
         asm("mov.s32 %0, t1;" : "=r"(C[y*N+x])); // C[y*N+x] = sum;
