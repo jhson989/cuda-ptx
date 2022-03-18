@@ -44,10 +44,6 @@ __global__ void matmul_ptx_s32(const DTYPE* A, const DTYPE* B, DTYPE* C, const i
 
     if (y<M && x<N) {
 
-        // k=0
-        // k<K
-        // 
-
         // DTYPE sum = 0;
         asm(".reg .s32 t1;\n\t"
             "mov.s32 t1, 0;"
