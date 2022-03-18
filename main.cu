@@ -5,14 +5,14 @@
 #include <cstdlib>
 
 #define DTYPE int
-#define DEBUG_ON
+#define DEBUG_OFF
 #define cudaErrChk(ans) { cudaAssert((ans), __FILE__, __LINE__); }
 inline void cudaAssert(cudaError_t code, const char *file, int line, bool abort=true);
 void check_result(std::vector<DTYPE>& A, std::vector<DTYPE>& B, std::vector<DTYPE>& C);
 
-int M = 1024+11;
-int N = 1024*13;
-int K = 1024*14;
+int M = 1024*10+0;
+int N = 1024*10+0;
+int K = 1024*10+0;
 
 /*******************************************************************
   * Kernel code
@@ -43,17 +43,22 @@ __global__ void matmul_ptx_s32(const DTYPE* A, const DTYPE* B, DTYPE* C, const i
     int x = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (y<M && x<N) {
-        
-        DTYPE sum = 0;
+
+        // k=0
+        // k<K
+        // 
+
+        // DTYPE sum = 0;
+        asm(".reg .s32 t1;\n\t"
+            "mov.s32 t1, 0;"
+           ); 
+    
         for (int k=0; k<K; k++) {
-            asm("{\n\t"
-                ".reg .s32 t1;\n\t"
-                "mul.lo.s32 t1, %1, %2;\n\t"
-                "add.s32 %0, %0, t1;\n\t"
-                "}"
-                : "+r"(sum ): "r"(A[y*K+k]), "r"(B[k*N+x])) ; // sum += A[y*K+k]*B[k*N+x];
+            // sum += A[y*K+k]*B[k*N+x];
+            asm("mad.lo.s32 t1, %0, %1, t1;" : :"r"(A[y*K+k]), "r"(B[k*N+x])) ; 
         }
-        asm("mov.s32 %0, %1;" : "=r"(C[y*N+x]) : "r"(sum)); // C[y*N+x] = sum;
+
+        asm("mov.s32 %0, t1;" : "=r"(C[y*N+x])); // C[y*N+x] = sum;
     }
 
 }
