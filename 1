@@ -5,14 +5,14 @@
 #include <cstdlib>
 
 #define DTYPE int
-#define DEBUG_ON
+#define DEBUG_OFF
 #define cudaErrChk(ans) { cudaAssert((ans), __FILE__, __LINE__); }
 inline void cudaAssert(cudaError_t code, const char *file, int line, bool abort=true);
 void check_result(std::vector<DTYPE>& A, std::vector<DTYPE>& B, std::vector<DTYPE>& C);
 
-int M = 1024*1+0;
-int N = 1024*1+0;
-int K = 1024*1+0;
+int M = 1024*10+0;
+int N = 1024*10+0;
+int K = 1024*10+0;
 
 /*******************************************************************
   * Kernel code
@@ -43,51 +43,15 @@ __global__ void matmul_ptx_s32(const DTYPE* A, const DTYPE* B, DTYPE* C, const i
     int x = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (y<M && x<N) {
-        
+        // DTYPE sum = 0;
         asm(".reg .s32 t1;\n\t"
-            "mov.s32 t1, 0;\n\t" // t1 = sum = 0 (init)
-            ".reg .s32 t2;\n\t"
-            "mov.s32 t2, 0;\n\t" // t2 = k = 0 (init)
-            ".reg .s32 t3;\n\t"
-            "mov.s32 t3, %1;\n\t" // t3 = M
-            ".reg .s32 t4;\n\t" 
-            "mov.s32 t4, %2;\n\t" // t4 = N
-            ".reg .s32 t5;\n\t"
-            "mov.s32 t2, %3;\n\t" // t5 = K
-            ".reg .s32 t6;\n\t"
-            "mul.lo.s32 t6, %3, %4;\n\t" // t6 = y = y*K (init)
-            ".reg .s32 t7;\n\t"
-            "mov.s32 t7, %5;\n\t" // t7 = x = x (init)
-            ".reg .s32 t8;\n\t" // t8 = A[y]
-            ".reg .s32 t9;\n\t" // t9 = B[x]
-            ".reg .u64 t10;\n\t"
-            "mov.u64 t10, %6;\n\t" // t10 = address of A[y]
-            ".reg .u64 t11;\n\t"
-            "mov.u64 t11, %7;\n\t" // t11 = address of B[x]
-
-            ".reg .pred %p;\n\t" // k<K predictor
-
-            /////// Loop-body
-            "Loop:\n\t"
-            "setp.ge.s32 %p, t2, t5;\n\t" // k < K ?
-            "@%p bra End;\n\t" // go to end
-            
-            //t1 += A[y*K+k]*B[k*N+x] => t1 += A[y]*B[x] and y+=1 and x+=N
-            "ld.global.s32 t8 t10;\n\t" // t8 = A[y]
-            "ld.global.s32 t9 t11;\n\t" // t9 = B[x]
-            "mad.lo.s32 t1, t8, t9, t1;\n\t" 
-            "add.s32 t6, t6, 1;\n\t" // y+=1
-            "add.s32 t7, t7, t4;\n\t" // x+=N
-            "add.s32 t2, t2, 1;\n\t" // k += 1
-            "bra Loop;\n\t"
-            /////// End-of-loop
-
-            "End:\n\t" // End
-            "mov.s32 %0, t1;"
-            : "=r"(C[y*N+x]) : "r"(M), "r"(N), "r"(K), "r"(y), "r"(x), "r64"(A), "r64"(B)
-        ); 
+            "mov.s32 t1, 0;"
+           ); 
  
-        /*
+        // k=0
+        // k<K
+        // 
+
         // DTYPE sum = 0;
         asm(".reg .s32 t1;\n\t"
             "mov.s32 t1, 0;"
@@ -99,7 +63,6 @@ __global__ void matmul_ptx_s32(const DTYPE* A, const DTYPE* B, DTYPE* C, const i
         }
 
         asm("mov.s32 %0, t1;" : "=r"(C[y*N+x])); // C[y*N+x] = sum;
-        */
     }
 
 }
