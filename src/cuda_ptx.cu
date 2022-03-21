@@ -4,7 +4,7 @@
 
 __global__ void matmul_ptx_s32(const int* A, const int* B, int* C, const int M, const int N, const int K) {
 
-    // Input register : A B C M N K
+    // Input register : M N K A B C
     asm(".reg .pred %p<5>;"
         ".reg .s32 t_M;\n\tmov.s32 t_M, %0;\n\t"
         ".reg .s32 t_N;\n\tmov.s32 t_N, %1;\n\t"
