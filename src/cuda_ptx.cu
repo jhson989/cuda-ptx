@@ -4,84 +4,94 @@
 
 __global__ void matmul_ptx_s32(const int* A, const int* B, int* C, const int M, const int N, const int K) {
 
-    asm(".reg .pred %p<5>;");
-    asm(".reg .s32 t_M;\n\tmov.s32 t_M, %0;" : : "r"(M));
-    asm(".reg .s32 t_N;\n\tmov.s32 t_N, %0;" : : "r"(N));
-    asm(".reg .s32 t_K;\n\tmov.s32 t_K, %0;" : : "r"(K));
-    asm(".reg .b64 t_A;\n\tmov.b64 t_A, %0;" : : "l"(A));
-    asm(".reg .b64 t_B;\n\tmov.b64 t_B, %0;" : : "l"(B));
-    asm(".reg .b64 t_C;\n\tmov.b64 t_C, %0;" : : "l"(C));
+    // Input register : A B C M N K
+    asm(".reg .pred %p<5>;"
+        ".reg .s32 t_M;\n\tmov.s32 t_M, %0;\n\t"
+        ".reg .s32 t_N;\n\tmov.s32 t_N, %1;\n\t"
+        ".reg .s32 t_K;\n\tmov.s32 t_K, %2;\n\t"
+        ".reg .b64 t_A;\n\tmov.b64 t_A, %3;\n\t"
+        ".reg .b64 t_B;\n\tmov.b64 t_B, %4;\n\t"
+        ".reg .b64 t_C;\n\tmov.b64 t_C, %5;\n\t"
+        : : "r"(M), "r"(N), "r"(K), "l"(A), "l"(B), "l"(C));
 
+    // Set 2D thread id (y, x) : y = blockIdx.y * blockDim.y + threadIdx.y;
+    asm(".reg .s32 t_y;\n\t"
+        ".reg .s32 ntim_y;\n\tmov.s32 ntim_y, %ntid.y;\n\t"
+        ".reg .s32 ctaid_y;\n\tmov.s32 ctaid_y, %ctaid.y;\n\t"
+        ".reg .s32 tid_y;\n\tmov.s32 tid_y, %tid.y;\n\t"
+        "mad.lo.s32 t_y, ntim_y, ctaid_y, tid_y;");
 
-    asm(".reg .s32 t_y;");
-    asm(".reg .s32 ntim_y;\n\tmov.s32 ntim_y, %ntid.y;");
-    asm(".reg .s32 ctaid_y;\n\tmov.s32 ctaid_y, %ctaid.y;");
-    asm(".reg .s32 tid_y;\n\tmov.s32 tid_y, %tid.y;");
-    asm("mad.lo.s32 t_y, ntim_y, ctaid_y, tid_y;");
-
-    asm(".reg .s32 t_x;");
-    asm(".reg .s32 ntim_x;\n\tmov.s32 ntim_x, %ntid.y;");
-    asm(".reg .s32 ctaid_x;\n\tmov.s32 ctaid_x, %ctaid.y;");
-    asm(".reg .s32 tid_x;\n\tmov.s32 tid_x, %tid.y;");
-    asm("mad.lo.s32 t_x, ntim_x, ctaid_x, tid_x;");
+    // Set 2D thread id (y, x) : x = blockIdx.x * blockDim.x + threadIdx.x;
+    asm(".reg .s32 t_x;\n\t"
+        ".reg .s32 ntim_x;\n\tmov.s32 ntim_x, %ntid.y;\n\t"
+        ".reg .s32 ctaid_x;\n\tmov.s32 ctaid_x, %ctaid.y;\n\t"
+        ".reg .s32 tid_x;\n\tmov.s32 tid_x, %tid.y;\n\t"
+        "mad.lo.s32 t_x, ntim_x, ctaid_x, tid_x;");
 
 
    
+    // Only valid thread whose id (y<M, x<N) is executed
     // if (y >= M || x >= N) return;
-    asm("setp.ge.s32 %p1, t_y, t_M;");
-    asm("setp.ge.s32 %p1, t_x, t_N;");
-    asm("or.pred %p3, %p1, %p2;");
-    asm("@%p3 bra RET;");
+    asm("setp.ge.s32 %p1, t_y, t_M;\n\t"
+        "setp.ge.s32 %p1, t_x, t_N;\n\t"
+        "or.pred %p3, %p1, %p2;\n\t"
+        "@%p3 bra RET;");
 
-    asm(".reg .b64 t_a_mem;");
-    asm(".reg .b32 t_a_mem_temp;");
-    asm(".reg .b32 t_a;");
-
-    asm(".reg .b64 t_b_mem;");
-    asm(".reg .b32 t_b_mem_temp;");
-    asm(".reg .b32 t_b;");
-
-    asm(".reg .b64 t_c_mem;");
-    asm(".reg .b32 t_c_mem_temp;");
-    asm(".reg .b32 t_c;");
+    // Temp register for calculate memory address
+    asm(".reg .b64 t_a_mem;\n\t"
+        ".reg .b32 t_a_mem_temp;\n\t"
+        ".reg .b32 t_a;\n\t"
+        ".reg .b64 t_b_mem;\n\t"
+        ".reg .b32 t_b_mem_temp;\n\t"
+        ".reg .b32 t_b;\n\t"
+        ".reg .b64 t_c_mem;\n\t"
+        ".reg .b32 t_c_mem_temp;\n\t"
+        ".reg .b32 t_c;");
 
     // int sum = 0; int k = 0;
-    asm(".reg .s32 t_k;\n\tmov.s32 t_k, 0;");
-    asm(".reg .s32 t_sum;\n\tmov.s32 t_sum, 0;");
+    asm(".reg .s32 t_k;\n\tmov.s32 t_k, 0;\n\t"
+        ".reg .s32 t_sum;\n\tmov.s32 t_sum, 0;");
 
-    // Loop start
-    asm("Loop_start:");
-    asm("setp.ge.s32 %p4, t_k, t_K;");
-    asm("@%p4 bra Loop_end;");
+    /*******************************************/
+    /*** Loop start ***/
+    // for (int k=0; k<K; k++)
+    asm("Loop_start:\n\t"
+        "setp.ge.s32 %p4, t_k, t_K;\n\t"
+        "@%p4 bra Loop_end;");
 
     // t_a_mem = A[y*K+k]
-    asm("mad.lo.s32 t_a_mem_temp, t_y, t_K, t_k;");
-    asm("mul.wide.s32 t_a_mem, t_a_mem_temp, 4;");
-    asm("add.u64 t_a_mem, t_A, t_a_mem;");
-    asm("ld.global.s32 t_a, [t_a_mem];");
+    asm("mad.lo.s32 t_a_mem_temp, t_y, t_K, t_k;\n\t"
+        "mul.wide.s32 t_a_mem, t_a_mem_temp, 4;\n\t"
+        "add.u64 t_a_mem, t_A, t_a_mem;\n\t"
+        "ld.global.s32 t_a, [t_a_mem];");
 
     // t_b_mem = B[k*N+x]
-    asm("mad.lo.s32 t_b_mem_temp, t_k, t_N, t_x;");
-    asm("mul.wide.s32 t_b_mem, t_b_mem_temp, 4;");
-    asm("add.u64 t_b_mem, t_B, t_b_mem;");
-    asm("ld.global.s32 t_b, [t_b_mem];");
+    asm("mad.lo.s32 t_b_mem_temp, t_k, t_N, t_x;\n\t"
+        "mul.wide.s32 t_b_mem, t_b_mem_temp, 4;\n\t"
+        "add.u64 t_b_mem, t_B, t_b_mem;\n\t"
+        "ld.global.s32 t_b, [t_b_mem];");
 
     // sum += A[y*K+k]*B[k*N+x];
-    asm("mad.lo.s32 t_sum, t_a, t_b, t_sum;") ; 
+    asm("mad.lo.s32 t_sum, t_a, t_b, t_sum;\n\t") ; 
+
+    // k++
+    asm("add.s32 t_k, t_k, 1;\n\t"
+        "bra Loop_start;\n\t"
+        "Loop_end:");
+    /*** Loop end ***/
+    /*******************************************/
 
 
-    asm("add.s32 t_k, t_k, 1;");
-    asm("bra Loop_start;");
-    asm("Loop_end:");
-    // Loop end
+    // t_c_mem = C[y*N+x]
+    asm("mad.lo.s32 t_c_mem_temp, t_y, t_N, t_x;\n\t"
+        "mul.wide.s32 t_c_mem, t_c_mem_temp, 4;\n\t"
+        "add.u64 t_c_mem, t_C, t_c_mem;"); 
 
-    asm("mad.lo.s32 t_c_mem_temp, t_y, t_N, t_x;"); // y*N+x
-    asm("mul.wide.s32 t_c_mem, t_c_mem_temp, 4;");
-    asm("add.u64 t_c_mem, t_C, t_c_mem;"); 
-    asm("st.global.s32 [t_c_mem], t_sum;"); // C[y*N+x] = sum;
+    // Store the result : C[y*N+x] = sum;
+    asm("st.global.s32 [t_c_mem], t_sum;");
 
 
+    // End of this kernel
     asm("RET:");
-
 
 }
