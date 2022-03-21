@@ -4,18 +4,27 @@
 
 __global__ void matmul_ptx_s32(const int* A, const int* B, int* C, const int M, const int N, const int K) {
 
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-
     asm(".reg .pred %p<5>;");
-    asm(".reg .s32 t_y;\n\tmov.s32 t_y, %0;" : : "r"(y));
-    asm(".reg .s32 t_x;\n\tmov.s32 t_x, %0;" : : "r"(x));
     asm(".reg .s32 t_M;\n\tmov.s32 t_M, %0;" : : "r"(M));
     asm(".reg .s32 t_N;\n\tmov.s32 t_N, %0;" : : "r"(N));
     asm(".reg .s32 t_K;\n\tmov.s32 t_K, %0;" : : "r"(K));
     asm(".reg .b64 t_A;\n\tmov.b64 t_A, %0;" : : "l"(A));
     asm(".reg .b64 t_B;\n\tmov.b64 t_B, %0;" : : "l"(B));
     asm(".reg .b64 t_C;\n\tmov.b64 t_C, %0;" : : "l"(C));
+
+
+    asm(".reg .s32 t_y;");
+    asm(".reg .s32 ntim_y;\n\tmov.s32 ntim_y, %ntid.y;");
+    asm(".reg .s32 ctaid_y;\n\tmov.s32 ctaid_y, %ctaid.y;");
+    asm(".reg .s32 tid_y;\n\tmov.s32 tid_y, %tid.y;");
+    asm("mad.lo.s32 t_y, ntim_y, ctaid_y, tid_y;");
+
+    asm(".reg .s32 t_x;");
+    asm(".reg .s32 ntim_x;\n\tmov.s32 ntim_x, %ntid.y;");
+    asm(".reg .s32 ctaid_x;\n\tmov.s32 ctaid_x, %ctaid.y;");
+    asm(".reg .s32 tid_x;\n\tmov.s32 tid_x, %tid.y;");
+    asm("mad.lo.s32 t_x, ntim_x, ctaid_x, tid_x;");
+
 
    
     // if (y >= M || x >= N) return;
