@@ -4,14 +4,14 @@
 #include <cstdio>
 #include <cstdlib>
 
-#define DEBUG_OFF
+#define DEBUG_ON
 #define cudaErrChk(ans) { cudaAssert((ans), __FILE__, __LINE__); }
 inline void cudaAssert(cudaError_t code, const char *file, int line, bool abort=true);
 void check_result(std::vector<int>& A, std::vector<int>& B, std::vector<int>& C);
 
-int M = 1024*10+0;
-int N = 1024*10+0;
-int K = 1024*10+0;
+int M = 1024*2+3;
+int N = 1024*1+2;
+int K = 1024*3+1;
 
 /*******************************************************************
   * Kernel code
