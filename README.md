@@ -1,2 +1,2 @@
 # cuda-ptx
-Inline PTX Assembly in CUDA example
+Inline CUDA PTX Assembly in matrix multiplication example
