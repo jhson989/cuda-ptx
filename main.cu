@@ -4,11 +4,10 @@
 #include <cstdio>
 #include <cstdlib>
 
-#define DTYPE int
 #define DEBUG_OFF
 #define cudaErrChk(ans) { cudaAssert((ans), __FILE__, __LINE__); }
 inline void cudaAssert(cudaError_t code, const char *file, int line, bool abort=true);
-void check_result(std::vector<DTYPE>& A, std::vector<DTYPE>& B, std::vector<DTYPE>& C);
+void check_result(std::vector<int>& A, std::vector<int>& B, std::vector<int>& C);
 
 int M = 1024*10+0;
 int N = 1024*10+0;
@@ -18,43 +17,10 @@ int K = 1024*10+0;
   * Kernel code
   ******************************************************************/
 
-__global__ void matmul_basic(const DTYPE* A, const DTYPE* B, DTYPE* C, const int M, const int N, const int K) {
-
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (y<M && x<N) {
-        
-        DTYPE sum = 0;
-        for (int k=0; k<K; k++) {
-            sum += A[y*K+k]*B[k*N+x];
-        }
-        C[y*N+x] = sum;
-    }
-
-}
+#include "include/cuda_c.cuh"
+#include "include/cuda_ptx.cuh"
 
 
-__global__ void matmul_ptx_s32(const DTYPE* A, const DTYPE* B, DTYPE* C, const int M, const int N, const int K) {
-
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (y<M && x<N) {
-
-        // DTYPE sum = 0;
-        asm(".reg .s32 t1;\n\t"
-            "mov.s32 t1, 0;"
-           ); 
-    
-        for (int k=0; k<K; k++) {
-            asm("mad.lo.s32 t1, %0, %1, t1;" : :"r"(A[y*K+k]), "r"(B[k*N+x])) ; // sum += A[y*K+k]*B[k*N+x];
-        }
-
-        asm("mov.s32 %0, t1;" : "=r"(C[y*N+x])); // C[y*N+x] = sum;
-    }
-
-}
 
 
 
@@ -63,7 +29,7 @@ __global__ void matmul_ptx_s32(const DTYPE* A, const DTYPE* B, DTYPE* C, const i
   * Host code
   ******************************************************************/
 
-void measure_basic(const DTYPE* d_A, DTYPE* d_B, DTYPE* d_C, int loop_exe=10) {
+void measure_basic(const int* d_A, int* d_B, int* d_C, int loop_exe=10) {
 
     printf("Basic kernel launched...\n");
 
@@ -97,7 +63,7 @@ void measure_basic(const DTYPE* d_A, DTYPE* d_B, DTYPE* d_C, int loop_exe=10) {
 
 }
 
-void measure_ptx(const DTYPE* d_A, DTYPE* d_B, DTYPE* d_C, int loop_exe=10) {
+void measure_ptx(const int* d_A, int* d_B, int* d_C, int loop_exe=10) {
 
     printf("PTX kernel launched...\n");
 
@@ -130,7 +96,7 @@ void measure_ptx(const DTYPE* d_A, DTYPE* d_B, DTYPE* d_C, int loop_exe=10) {
 
 
 
-DTYPE init_value() {
+int init_value() {
     return std::rand()%11-5;
 }
 
@@ -140,7 +106,7 @@ int main(void) {
     printf("\n************************************************\n");
     printf("PTX code example - matrix multiplication\n");
     printf(" -- A[%d, %d] * B[%d, %d] = C[%d, %d]\n", M, K, K, N, M, N);
-    printf(" -- Total usage of memory : %.3f GB\n", (1.0f*(M*K+K*N+M*N)*sizeof(DTYPE))/(1<<30));
+    printf(" -- Total usage of memory : %.3f GB\n", (1.0f*(M*K+K*N+M*N)*sizeof(int))/(1<<30));
     printf("************************************************\n\n");
 
 
@@ -149,23 +115,23 @@ int main(void) {
       ***********************************/
 
     // Input matrix A
-    std::vector<DTYPE> A(M*K);
+    std::vector<int> A(M*K);
     std::generate(A.begin(), A.end(), init_value);
     // Input matrix B
-    std::vector<DTYPE> B(K*N);
+    std::vector<int> B(K*N);
     std::generate(B.begin(), B.end(), init_value);
     // Input matrix C
-    std::vector<DTYPE> C(M*N);
+    std::vector<int> C(M*N);
 
     // Alloc GPU memory
-    DTYPE *d_A, *d_B, *d_C;
-    cudaErrChk( cudaMalloc((void**)&d_A, sizeof(DTYPE)*M*K) );
-    cudaErrChk( cudaMalloc((void**)&d_B, sizeof(DTYPE)*K*N) );
-    cudaErrChk( cudaMalloc((void**)&d_C, sizeof(DTYPE)*M*N) );
+    int *d_A, *d_B, *d_C;
+    cudaErrChk( cudaMalloc((void**)&d_A, sizeof(int)*M*K) );
+    cudaErrChk( cudaMalloc((void**)&d_B, sizeof(int)*K*N) );
+    cudaErrChk( cudaMalloc((void**)&d_C, sizeof(int)*M*N) );
     
     // Memcpy from host to device
-    cudaErrChk( cudaMemcpy(d_A, A.data(), sizeof(DTYPE)*M*K, cudaMemcpyHostToDevice) );
-    cudaErrChk( cudaMemcpy(d_B, B.data(), sizeof(DTYPE)*K*N, cudaMemcpyHostToDevice) );
+    cudaErrChk( cudaMemcpy(d_A, A.data(), sizeof(int)*M*K, cudaMemcpyHostToDevice) );
+    cudaErrChk( cudaMemcpy(d_B, B.data(), sizeof(int)*K*N, cudaMemcpyHostToDevice) );
     cudaErrChk( cudaDeviceSynchronize() );
     cudaErrChk( cudaGetLastError() );
     
@@ -176,7 +142,7 @@ int main(void) {
     // Basic matrix multiplication
     measure_basic(d_A, d_B, d_C);
     #ifdef DEBUG_ON
-    cudaErrChk( cudaMemcpy(C.data(), d_C, sizeof(DTYPE)*M*N, cudaMemcpyDeviceToHost) );
+    cudaErrChk( cudaMemcpy(C.data(), d_C, sizeof(int)*M*N, cudaMemcpyDeviceToHost) );
     cudaErrChk( cudaDeviceSynchronize() );
     check_result(A, B, C);
     #endif
@@ -184,7 +150,7 @@ int main(void) {
     // PTX matrix multiplication
     measure_ptx(d_A, d_B, d_C);
     #ifdef DEBUG_ON
-    cudaErrChk( cudaMemcpy(C.data(), d_C, sizeof(DTYPE)*M*N, cudaMemcpyDeviceToHost) );
+    cudaErrChk( cudaMemcpy(C.data(), d_C, sizeof(int)*M*N, cudaMemcpyDeviceToHost) );
     cudaErrChk( cudaDeviceSynchronize() );
     check_result(A, B, C);
     #endif
@@ -214,12 +180,12 @@ inline void cudaAssert(cudaError_t code, const char *file, int line, bool abort)
 }
 
 
-void check_result(std::vector<DTYPE>& A, std::vector<DTYPE>& B, std::vector<DTYPE>& C) {
+void check_result(std::vector<int>& A, std::vector<int>& B, std::vector<int>& C) {
     
     printf(" -- Checking result ...\n");
     for (int y=0; y<M; y++) {
         for (int x=0; x<N; x++) {
-            DTYPE sum = 0;
+            int sum = 0;
             for (int k=0; k<K; k++) {
                 sum += A[y*K+k]*B[k*N+x];
             }
