@@ -31,7 +31,7 @@ __global__ void matmul_ptx_s32(const int* A, const int* B, int* C, const int M, 
     // Only valid thread whose id (y<M, x<N) is executed
     // if (y >= M || x >= N) return;
     asm("setp.ge.s32 %p1, t_y, t_M;\n\t"
-        "setp.ge.s32 %p1, t_x, t_N;\n\t"
+        "setp.ge.s32 %p2, t_x, t_N;\n\t"
         "or.pred %p3, %p1, %p2;\n\t"
         "@%p3 bra RET;");
 
