@@ -35,7 +35,6 @@ void measure_basic(const int* d_A, int* d_B, int* d_C, int loop_exe=10) {
 
     const dim3 dim_threads(16, 16);
     const dim3 dim_blocks((N+dim_threads.x-1)/dim_threads.x, (M+dim_threads.y-1)/dim_threads.y);
-    matmul_basic<<<dim_blocks, dim_threads>>>(d_A, d_B, d_C, M, N, K); // for warmning up
     cudaErrChk( cudaDeviceSynchronize() );
 
 
@@ -49,7 +48,11 @@ void measure_basic(const int* d_A, int* d_B, int* d_C, int loop_exe=10) {
     cudaErrChk( cudaEventRecord(start, NULL) );
     // Main body
     for (int i=0; i<loop_exe; i++) {
+        #ifdef SHARED
+        matmul_shared<<<dim_blocks, dim_threads, 2*sizeof(int)*dim_threads.x*dim_threads.x >>>(d_A, d_B, d_C, M, N, K);
+        #else
         matmul_basic<<<dim_blocks, dim_threads>>>(d_A, d_B, d_C, M, N, K);
+        #endif
     }
     // End of main body
     cudaErrChk( cudaEventRecord(stop, NULL) );
@@ -69,7 +72,6 @@ void measure_ptx(const int* d_A, int* d_B, int* d_C, int loop_exe=10) {
 
     const dim3 dim_threads(16, 16);
     const dim3 dim_blocks((N+dim_threads.x-1)/dim_threads.x, (M+dim_threads.y-1)/dim_threads.y);
-    matmul_ptx_s32<<<dim_blocks, dim_threads>>>(d_A, d_B, d_C, M, N, K); // for warming up
     cudaErrChk( cudaDeviceSynchronize() );
 
     float gops = 1.0*M*K*N*1e-9*loop_exe;
@@ -140,11 +142,11 @@ int main(void) {
       ***********************************/
 
     // Basic matrix multiplication
-    measure_basic(d_A, d_B, d_C);
+    //measure_basic(d_A, d_B, d_C);
     #ifdef DEBUG_ON
-    cudaErrChk( cudaMemcpy(C.data(), d_C, sizeof(int)*M*N, cudaMemcpyDeviceToHost) );
-    cudaErrChk( cudaDeviceSynchronize() );
-    check_result(A, B, C);
+    //cudaErrChk( cudaMemcpy(C.data(), d_C, sizeof(int)*M*N, cudaMemcpyDeviceToHost) );
+    //cudaErrChk( cudaDeviceSynchronize() );
+    //check_result(A, B, C);
     #endif
 
     // PTX matrix multiplication
@@ -191,9 +193,13 @@ void check_result(std::vector<int>& A, std::vector<int>& B, std::vector<int>& C)
             }
             if ( C[y*N+x]!= sum) {
                 printf(" -- [[ERROR]] Checking result is failed at C[%d, %d](%d) != gt(%d)\n", y, x, C[y*N+x], sum);
-                return;
+                //return;
+            }
+            else {
+                printf(" -- [[GOOD]] Checking result is failed at C[%d, %d](%d) != gt(%d)\n", y, x, C[y*N+x], sum);
             }
         }
+        break;
     }
     printf(" -- Chekcing result succeed!!\n");
 
