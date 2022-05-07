@@ -4,15 +4,15 @@
 #include <cstdio>
 #include <cstdlib>
 
-#define DEBUG_OFF
+#define DEBUG_ON
 #define LOOP (2)
 #define cudaErrChk(ans) { cudaAssert((ans), __FILE__, __LINE__); }
 inline void cudaAssert(cudaError_t code, const char *file, int line, bool abort=true);
 void check_result(std::vector<int>& A, std::vector<int>& B, std::vector<int>& C);
 
-int M = 1024*10;
-int N = 1024*10;
-int K = 1024*10;
+int M = 1024*1+1;
+int N = 1024*1+7;
+int K = 1024*1+11;
 
 /*******************************************************************
   * Kernel code

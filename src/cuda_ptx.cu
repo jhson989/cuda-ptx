@@ -3,9 +3,12 @@
 
 #ifdef SHARED
 
-// TODO
+// TODO 구현 중
 
 __global__ void matmul_ptx_s32_shared(const int* A, const int* B, int* C, const int M, const int N, const int K) {
+
+    // Shared memory
+    // asm(".extern .shared .align 4 .b8 smem[];");
 
     // Input registers : M N K A B C
     asm(".reg .pred %p<5>;"
