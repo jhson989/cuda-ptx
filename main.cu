@@ -145,6 +145,7 @@ int main(void) {
     //measure_basic(d_A, d_B, d_C);
     #ifdef DEBUG_ON
     //cudaErrChk( cudaMemcpy(C.data(), d_C, sizeof(int)*M*N, cudaMemcpyDeviceToHost) );
+    cudaErrChk( cudaMemset(d_C, 0, sizeof(int)*M*N) );
     //cudaErrChk( cudaDeviceSynchronize() );
     //check_result(A, B, C);
     #endif
@@ -185,8 +186,8 @@ inline void cudaAssert(cudaError_t code, const char *file, int line, bool abort)
 void check_result(std::vector<int>& A, std::vector<int>& B, std::vector<int>& C) {
     
     printf(" -- Checking result ...\n");
-    for (int y=0; y<M; y++) {
-        for (int x=0; x<N; x++) {
+    for (int y=0; y<4/*M*/; y++) {
+        for (int x=0; x<4/*N*/; x++) {
             int sum = 0;
             for (int k=0; k<K; k++) {
                 sum += A[y*K+k]*B[k*N+x];
@@ -199,7 +200,7 @@ void check_result(std::vector<int>& A, std::vector<int>& B, std::vector<int>& C)
                 printf(" -- [[GOOD]] Checking result is failed at C[%d, %d](%d) != gt(%d)\n", y, x, C[y*N+x], sum);
             }
         }
-        break;
+        
     }
     printf(" -- Chekcing result succeed!!\n");
 

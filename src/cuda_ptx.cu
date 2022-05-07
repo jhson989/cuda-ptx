@@ -23,9 +23,9 @@ __global__ void matmul_ptx_s32(const int* A, const int* B, int* C, const int M, 
 
     // Set 2D thread id (y, x) : x = blockIdx.x * blockDim.x + threadIdx.x;
     asm(".reg .s32 t_x;\n\t"
-        ".reg .s32 ntim_x;\n\tmov.s32 ntim_x, %ntid.y;\n\t"
-        ".reg .s32 ctaid_x;\n\tmov.s32 ctaid_x, %ctaid.y;\n\t"
-        ".reg .s32 tid_x;\n\tmov.s32 tid_x, %tid.y;\n\t"
+        ".reg .s32 ntim_x;\n\tmov.s32 ntim_x, %ntid.x;\n\t"
+        ".reg .s32 ctaid_x;\n\tmov.s32 ctaid_x, %ctaid.x;\n\t"
+        ".reg .s32 tid_x;\n\tmov.s32 tid_x, %tid.x;\n\t"
         "mad.lo.s32 t_x, ntim_x, ctaid_x, tid_x;");
 
     // Only valid thread whose id (y<M, x<N) is executed
