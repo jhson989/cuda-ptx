@@ -4,14 +4,14 @@
 #include <cstdio>
 #include <cstdlib>
 
-#define DEBUG_ON
+#define DEBUG_OFF
 #define cudaErrChk(ans) { cudaAssert((ans), __FILE__, __LINE__); }
 inline void cudaAssert(cudaError_t code, const char *file, int line, bool abort=true);
 void check_result(std::vector<int>& A, std::vector<int>& B, std::vector<int>& C);
 
-int M = 1024*1;
-int N = 1024*1;
-int K = 1024*1;
+int M = 1024*10;
+int N = 1024*10;
+int K = 1024*10;
 
 /*******************************************************************
   * Kernel code
@@ -36,8 +36,6 @@ void measure_basic(const int* d_A, int* d_B, int* d_C, int loop_exe=10) {
     const dim3 dim_threads(16, 16);
     const dim3 dim_blocks((N+dim_threads.x-1)/dim_threads.x, (M+dim_threads.y-1)/dim_threads.y);
     cudaErrChk( cudaDeviceSynchronize() );
-
-
 
     float gops = 1.0*M*K*N*1e-9*loop_exe;
     float msec_total = 0.0f;
@@ -83,7 +81,11 @@ void measure_ptx(const int* d_A, int* d_B, int* d_C, int loop_exe=10) {
     cudaErrChk( cudaEventRecord(start, NULL) );
     // Main body
     for (int i=0; i<loop_exe; i++) {
-        matmul_ptx_s32<<<dim_blocks, dim_threads>>>(d_A, d_B, d_C, M, N, K);
+        #ifdef SHARED
+        matmul_ptx_s32_shared<<<dim_blocks, dim_threads>>>(d_A, d_B, d_C, M, N, K);
+        #else
+        matmul_ptx_s32_basic<<<dim_blocks, dim_threads>>>(d_A, d_B, d_C, M, N, K);
+        #endif
     }
     // End of main body
     cudaErrChk( cudaEventRecord(stop, NULL) );
@@ -142,12 +144,12 @@ int main(void) {
       ***********************************/
 
     // Basic matrix multiplication
-    //measure_basic(d_A, d_B, d_C);
+    measure_basic(d_A, d_B, d_C);
     #ifdef DEBUG_ON
-    //cudaErrChk( cudaMemcpy(C.data(), d_C, sizeof(int)*M*N, cudaMemcpyDeviceToHost) );
+    cudaErrChk( cudaMemcpy(C.data(), d_C, sizeof(int)*M*N, cudaMemcpyDeviceToHost) );
     cudaErrChk( cudaMemset(d_C, 0, sizeof(int)*M*N) );
-    //cudaErrChk( cudaDeviceSynchronize() );
-    //check_result(A, B, C);
+    cudaErrChk( cudaDeviceSynchronize() );
+    check_result(A, B, C);
     #endif
 
     // PTX matrix multiplication

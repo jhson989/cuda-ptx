@@ -13,26 +13,25 @@ __global__ void matmul_shared(const int* A, const int* B, int* C, const int M, c
     float *sA = &smem[0];
     float *sB = &smem[blockDim.x*blockDim.x];
 
-    int tile_size = blockDim.x;
     int sum = 0;
-    for (int t=0; t<K; t+=tile_size) {
+    for (int t=0; t<K; t+=blockDim.x) {
         
-        if (y<M && sx+t*tile_size<K) {
-            sA[sy*tile_size+sx] = A[y*K+(sx+t*tile_size)];
+        if (y<M && sx+t<K) {
+            sA[sy*blockDim.x+sx] = A[y*K+(sx+t)];
         } else {
-            sA[sy*tile_size+sx] = 0;
+            sA[sy*blockDim.x+sx] = 0;
         }
 
-        if (x<N && sy+t*tile_size<K) {
-            sB[sy*tile_size+sx] = B[(sy+t*tile_size)*N+x];
+        if (x<N && sy+t<K) {
+            sB[sy*blockDim.x+sx] = B[(sy+t)*N+x];
         } else {
-            sB[sy*tile_size+sx] = 0;
+            sB[sy*blockDim.x+sx] = 0;
         }
 
         __syncthreads();
 
-        for (int k=0; k<tile_size; k++) {
-            sum += sA[sy*tile_size+k]*B[k*tile_size+sx];
+        for (int k=0; k<blockDim.x; k++) {
+            sum += sA[sy*blockDim.x+k]*sB[k*blockDim.x+sx];
         }
 
         __syncthreads();
