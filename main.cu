@@ -5,6 +5,7 @@
 #include <cstdlib>
 
 #define DEBUG_OFF
+#define LOOP (2)
 #define cudaErrChk(ans) { cudaAssert((ans), __FILE__, __LINE__); }
 inline void cudaAssert(cudaError_t code, const char *file, int line, bool abort=true);
 void check_result(std::vector<int>& A, std::vector<int>& B, std::vector<int>& C);
@@ -29,7 +30,7 @@ int K = 1024*10;
   * Host code
   ******************************************************************/
 
-void measure_basic(const int* d_A, int* d_B, int* d_C, int loop_exe=10) {
+void measure_basic(const int* d_A, int* d_B, int* d_C, int loop_exe=LOOP) {
 
     printf("Basic kernel launched...\n");
 
@@ -60,11 +61,11 @@ void measure_basic(const int* d_A, int* d_B, int* d_C, int loop_exe=10) {
 
     printf(" -- Total number of multiplications : %.3f Gops\n", gops/loop_exe);
     printf(" -- Avg. elapsed time: %.3f s\n", msec_total/loop_exe*1e-3);
-    printf(" -- Avg. GILOPS : %.3f\n", gops/(msec_total/loop_exe*1e-3));
+    printf(" -- Avg. GILOPS : %.3f\n", (gops/loop_exe)/(msec_total/loop_exe*1e-3));
 
 }
 
-void measure_ptx(const int* d_A, int* d_B, int* d_C, int loop_exe=10) {
+void measure_ptx(const int* d_A, int* d_B, int* d_C, int loop_exe=LOOP) {
 
     printf("PTX kernel launched...\n");
 
@@ -94,7 +95,7 @@ void measure_ptx(const int* d_A, int* d_B, int* d_C, int loop_exe=10) {
 
     printf(" -- Total number of multiplications : %.3f Gops\n", gops/loop_exe);
     printf(" -- Avg. elapsed time: %.3f s\n", msec_total/loop_exe*1e-3);
-    printf(" -- Avg. GILOPS : %.3f\n", gops/(msec_total/loop_exe*1e-3));
+    printf(" -- Avg. GILOPS : %.3f\n", (gops/loop_exe)/(msec_total/loop_exe*1e-3));
 
 }
 
