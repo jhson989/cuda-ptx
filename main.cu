@@ -186,18 +186,15 @@ inline void cudaAssert(cudaError_t code, const char *file, int line, bool abort)
 void check_result(std::vector<int>& A, std::vector<int>& B, std::vector<int>& C) {
     
     printf(" -- Checking result ...\n");
-    for (int y=0; y<4/*M*/; y++) {
-        for (int x=0; x<4/*N*/; x++) {
+    for (int y=0; y<M; y++) {
+        for (int x=0; x<N; x++) {
             int sum = 0;
             for (int k=0; k<K; k++) {
                 sum += A[y*K+k]*B[k*N+x];
             }
             if ( C[y*N+x]!= sum) {
                 printf(" -- [[ERROR]] Checking result is failed at C[%d, %d](%d) != gt(%d)\n", y, x, C[y*N+x], sum);
-                //return;
-            }
-            else {
-                printf(" -- [[GOOD]] Checking result is failed at C[%d, %d](%d) != gt(%d)\n", y, x, C[y*N+x], sum);
+                return;
             }
         }
         
