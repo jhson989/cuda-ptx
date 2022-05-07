@@ -3,6 +3,8 @@
 
 #ifdef SHARED
 
+// TODO
+
 __global__ void matmul_ptx_s32_shared(const int* A, const int* B, int* C, const int M, const int N, const int K) {
 
     // Input registers : M N K A B C
